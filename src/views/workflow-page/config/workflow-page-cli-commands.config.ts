@@ -1,0 +1,108 @@
+import { type CliCommandConfig } from '../workflow-page-cli-commands-modal/workflow-page-cli-commands-modal.types';
+
+const workflowPageCliCommandsConfig: CliCommandConfig[] = [
+  {
+    label: 'Register a domain (local only)',
+    command:
+      'cadence --domain {domain-name} domain register --global_domain false',
+    group: 'domain',
+  },
+  {
+    label: 'List domain settings',
+    command: 'cadence --domain {domain-name} domain describe',
+    group: 'domain',
+  },
+  {
+    label: 'Update domain active cluster',
+    command:
+      'cadence --domain {domain-name} domain failover --active_cluster {cluster-name}',
+    description: '(Available on CLI version: 1.1.21 or higher)',
+    group: 'domain',
+  },
+  {
+    label: 'Update domain bad binary',
+    command:
+      'cadence --domain {domain-name} domain update --add_bad_binary {bad-binary-SHA} --reason \'"{reason}"\'',
+    group: 'domain',
+  },
+  // workflow commands
+  {
+    label: 'Run a workflow',
+    command:
+      'cadence --domain {domain-name} workflow run --tl {task-list-name} --wt {workflow-type-name} --et 60 -i \'"{input-string}"\'',
+    group: 'workflow',
+  },
+  {
+    label: 'See workflow settings',
+    command:
+      'cadence --domain {domain-name} workflow describe -w {workflow-id} -r {run-id}',
+    group: 'workflow',
+  },
+  {
+    label: 'See workflow history',
+    command:
+      'cadence --domain {domain-name} workflow show -w {workflow-id} -r {run-id}',
+    group: 'workflow',
+  },
+  {
+    label: 'Signal a workflow',
+    command:
+      'cadence --domain {domain-name} workflow signal -w {workflow-id} -r {run-id} --name {signal-name} --input \'"{signal-payload}"\'',
+    group: 'workflow',
+  },
+  {
+    label: 'Reset a workflow',
+    command:
+      'cadence workflow reset -w {workflow-id} -r {run-id} --event_id {event-id} --reason \'"{reason}"\' --reset_type {reset-type} --reset_bad_binary_checksum {bad-binary-SHA}',
+    description: `Use event_id to reset from specific event or reset_type with one of the following values BadBinary, DecisionCompletedTime, FirstDecisionScheduled, FirstDecisionCompleted, LastDecisionScheduled, LastDecisionCompleted, LastContinuedAsNew`,
+    group: 'workflow',
+  },
+  {
+    label: 'Reset a batch of workflows',
+    command:
+      'cadence workflow reset-batch --query \'"{query}"\' --only_non_deterministic --reason \'"{reason}"\' --reset_type {reset-type}',
+    description: `Where query can be any query that returns a list of workflows and reset_type can be BadBinary, DecisionCompletedTime, FirstDecisionScheduled, FirstDecisionCompleted, LastDecisionScheduled, LastDecisionCompleted, LastContinuedAsNew`,
+    group: 'workflow',
+  },
+  {
+    label: 'Restart a workflow',
+    command: 'cadence workflow restart -w {workflow-id} -r {run-id}',
+    description:
+      'Starts a new execution using the same input & terminates previous execution',
+    group: 'workflow',
+  },
+  {
+    label: 'List closed workflows',
+    command: 'cadence --domain {domain-name} workflow {list|listall}',
+    group: 'workflow',
+  },
+  {
+    label: 'List open workflows',
+    command: 'cadence --domain {domain-name} workflow {list|listall} --open',
+    group: 'workflow',
+  },
+  {
+    label: 'Query for a workflow',
+    command:
+      'cadence workflow {list|listall} --query \'(CustomKeywordField = "keyword1" and CustomIntField >= 5) or CustomKeywordField = "keyword2" and CloseTime = missing\'',
+    group: 'workflow',
+  },
+  {
+    label: 'Cancel a workflow',
+    command:
+      'cadence --domain {domain-name} workflow cancel -w {workflow-id} -r {run-id} --reason {reason details}',
+    description:
+      'Cancel a workflow, recording WorkflowExecutionCancelRequested event and allowing for clean up work after cancellation',
+    group: 'workflow',
+  },
+  {
+    label: 'Terminate a workflow',
+    command:
+      'cadence --domain {domain-name} workflow terminate -w {workflow-id} -r {run-id} --reason {reason details}',
+    description:
+      'Terminate a workflow immediately, recording WorkflowExecutionTerminated event as the closing event in the history',
+    group: 'workflow',
+  },
+];
+
+export default workflowPageCliCommandsConfig;

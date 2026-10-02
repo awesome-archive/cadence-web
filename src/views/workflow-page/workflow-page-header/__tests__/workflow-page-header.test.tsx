@@ -1,0 +1,105 @@
+import React from 'react';
+
+import { render } from '@/test-utils/rtl';
+
+import WorkflowPageHeader from '../workflow-page-header';
+import type { Props } from '../workflow-page-header.types';
+
+jest.mock('query-string', () => ({
+  stringifyUrl: jest.fn(() => 'mock-stringified-api-url'),
+}));
+
+jest.mock(
+  '../../workflow-page-status-tag/workflow-page-status-tag',
+  () =>
+    function WorkflowPageStatusTag() {
+      return (
+        <div data-testid="workflow-page-status-tag">Example Status Tag</div>
+      );
+    }
+);
+
+jest.mock(
+  '../../workflow-page-header-cluster-selector/workflow-page-header-cluster-selector',
+  () =>
+    function WorkflowPageHeaderClusterSelector({
+      cluster,
+    }: {
+      cluster: string;
+    }) {
+      return (
+        <span data-testid="workflow-page-cluster-selector">{cluster}</span>
+      );
+    }
+);
+
+describe('WorkflowPageHeader', () => {
+  it('renders breadcrumbs with correct domain content and link', () => {
+    const domain = 'test-domain';
+    const cluster = 'test-cluster';
+    const { getByText } = setup({ domain, cluster });
+    // Verify domain breadcrumb
+    const domainBreadcrumb = getByText(domain);
+    expect(domainBreadcrumb).toBeInTheDocument();
+    expect(domainBreadcrumb).toHaveAttribute(
+      'href',
+      `/domains/${encodeURIComponent(domain)}/${encodeURIComponent(cluster)}`
+    );
+  });
+
+  it('renders breadcrumbs with correct workflowId content and query-string stringified link', () => {
+    const workflowId = 'test-workflowId';
+    const { getByText } = setup({ workflowId });
+
+    // Verify workflowId breadcrumb
+    const workflowIdBreadcrumb = getByText(workflowId);
+    expect(workflowIdBreadcrumb).toBeInTheDocument();
+    expect(workflowIdBreadcrumb).toHaveAttribute(
+      'href',
+      '/mock-stringified-api-url'
+    );
+  });
+
+  it('renders cluster selector in breadcrumb', () => {
+    const cluster = 'test-cluster';
+    const { getByTestId } = setup({ cluster });
+
+    expect(getByTestId('workflow-page-cluster-selector')).toHaveTextContent(
+      cluster
+    );
+  });
+
+  it('renders breadcrumbs with correct runId and status tag', () => {
+    const runId = 'test-runId';
+    const { getByText, getByTestId } = setup({ runId });
+
+    // Verify runId breadcrumb
+    expect(getByText(runId)).toBeInTheDocument();
+
+    // Verify runId breadcrumb has status bage
+    expect(getByTestId('workflow-page-status-tag')).toBeInTheDocument();
+  });
+
+  it('renders Cadence Icon image with correct alt text and source', () => {
+    const { getByAltText } = setup({});
+
+    const cadenceIcon = getByAltText('Cadence Icon');
+    expect(cadenceIcon).toBeInTheDocument();
+  });
+});
+
+function setup({
+  domain = 'example-domain',
+  workflowId = 'example-workflow-id',
+  runId = 'example-run-id',
+  cluster = 'example-cluster',
+}: Partial<Props>) {
+  return render(
+    <WorkflowPageHeader
+      domain={domain}
+      workflowId={workflowId}
+      runId={runId}
+      cluster={cluster}
+    />
+  );
+}

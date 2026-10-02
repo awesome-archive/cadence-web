@@ -1,0 +1,256 @@
+import { type DateFilterValue } from '@/components/date-filter/date-filter.types';
+import parseDateFilterValue from '@/components/date-filter/helpers/parse-date-filter-value';
+import {
+  type PageQueryParamMultiValue,
+  type PageQueryParam,
+} from '@/hooks/use-page-query-params/use-page-query-params.types';
+import { type SortOrder } from '@/utils/sort-by';
+import { type DomainSchedulesStatus } from '@/views/domain-schedules/domain-schedules.types';
+import { isDomainSchedulesStatus } from '@/views/domain-schedules/helpers/is-domain-schedules-status';
+import { type WorkflowStatusClosed } from '@/views/domain-workflows-archival/domain-workflows-archival-header/domain-workflows-archival-header.types';
+import { type WorkflowStatusBasicVisibility } from '@/views/domain-workflows-basic/domain-workflows-basic-filters/domain-workflows-basic-filters.types';
+import isWorkflowStatusBasicVisibility from '@/views/domain-workflows-basic/domain-workflows-basic-filters/helpers/is-workflow-status-basic-visibility';
+import isWorkflowStatus from '@/views/shared/workflow-status-tag/helpers/is-workflow-status';
+import { type WorkflowStatus } from '@/views/shared/workflow-status-tag/workflow-status-tag.types';
+import { type WorkflowsHeaderInputType } from '@/views/shared/workflows-header/workflows-header.types';
+
+// URL params scoped to the batch action draft.
+export const domainBatchActionsQueryParamsConfig: [
+  PageQueryParam<'batchActionInputType', WorkflowsHeaderInputType>,
+  PageQueryParam<'batchActionQuery', string>,
+  PageQueryParam<'batchActionSearch', string>,
+  PageQueryParamMultiValue<
+    'batchActionStatuses',
+    Array<WorkflowStatus> | undefined
+  >,
+  PageQueryParam<'batchActionTimeRangeStart', DateFilterValue | undefined>,
+  PageQueryParam<'batchActionTimeRangeEnd', DateFilterValue>,
+  PageQueryParam<'batchActionId', string | undefined>,
+  PageQueryParam<'batchActionWorkflowId', string | undefined>,
+] = [
+  {
+    key: 'batchActionInputType',
+    queryParamKey: 'bainput',
+    defaultValue: 'query',
+    parseValue: (value: string) => (value === 'search' ? 'search' : 'query'),
+  },
+  {
+    key: 'batchActionQuery',
+    queryParamKey: 'baquery',
+    defaultValue: '',
+  },
+  {
+    key: 'batchActionSearch',
+    queryParamKey: 'basearch',
+    defaultValue: '',
+  },
+  {
+    key: 'batchActionStatuses',
+    queryParamKey: 'bastatus',
+    isMultiValue: true,
+    parseValue: (value: Array<string>) =>
+      value.every(isWorkflowStatus) ? value : undefined,
+  },
+  {
+    key: 'batchActionTimeRangeStart',
+    queryParamKey: 'bastart',
+    parseValue: parseDateFilterValue,
+  },
+  {
+    key: 'batchActionTimeRangeEnd',
+    queryParamKey: 'baend',
+    defaultValue: 'now',
+    parseValue: (v) => parseDateFilterValue(v) ?? 'now',
+  },
+  {
+    key: 'batchActionId',
+    queryParamKey: 'baid',
+  },
+  {
+    key: 'batchActionWorkflowId',
+    queryParamKey: 'bawid',
+  },
+] as const;
+
+const domainPageQueryParamsConfig: [
+  PageQueryParam<'inputType', WorkflowsHeaderInputType>,
+  // Search input
+  PageQueryParam<'search', string>,
+  PageQueryParamMultiValue<'statuses', Array<WorkflowStatus> | undefined>,
+  PageQueryParam<'timeRangeStart', DateFilterValue | undefined>,
+  PageQueryParam<'timeRangeEnd', DateFilterValue>,
+  PageQueryParam<'sortColumn', string>,
+  PageQueryParam<'sortOrder', SortOrder>,
+  // Query input
+  PageQueryParam<'query', string>,
+  // Batch actions query params (Query + Select mode), defined and exported above.
+  ...typeof domainBatchActionsQueryParamsConfig,
+  // Basic Visibility inputs
+  PageQueryParam<'workflowId', string>,
+  PageQueryParam<'workflowType', string>,
+  PageQueryParam<'statusBasic', WorkflowStatusBasicVisibility | undefined>,
+  PageQueryParam<'timeRangeStartBasic', DateFilterValue>,
+  PageQueryParam<'timeRangeEndBasic', DateFilterValue>,
+  // Archival inputs
+  PageQueryParam<'inputTypeArchival', WorkflowsHeaderInputType>,
+  PageQueryParam<'searchArchival', string>,
+  PageQueryParamMultiValue<
+    'statusesArchival',
+    Array<WorkflowStatusClosed> | undefined
+  >,
+  PageQueryParam<'timeRangeStartArchival', DateFilterValue>,
+  PageQueryParam<'timeRangeEndArchival', DateFilterValue>,
+  PageQueryParam<'sortColumnArchival', string>,
+  PageQueryParam<'sortOrderArchival', SortOrder>,
+  PageQueryParam<'queryArchival', string>,
+  // Failovers Tab query params
+  PageQueryParam<'clusterAttributeScope', string | undefined>,
+  PageQueryParam<'clusterAttributeValue', string | undefined>,
+  // Schedules Tab query params
+  PageQueryParam<'schedulesSearch', string>,
+  PageQueryParam<'schedulesStatus', DomainSchedulesStatus | undefined>,
+] = [
+  {
+    key: 'inputType',
+    queryParamKey: 'input',
+    defaultValue: 'search',
+    parseValue: (value: string) => (value === 'query' ? 'query' : 'search'),
+  },
+  {
+    key: 'search',
+    defaultValue: '',
+  },
+  {
+    key: 'statuses',
+    queryParamKey: 'status',
+    isMultiValue: true,
+    parseValue: (value: Array<string>) =>
+      value.every(isWorkflowStatus) ? value : undefined,
+  },
+  {
+    key: 'timeRangeStart',
+    queryParamKey: 'start',
+    parseValue: parseDateFilterValue,
+  },
+  {
+    key: 'timeRangeEnd',
+    queryParamKey: 'end',
+    defaultValue: 'now',
+    parseValue: (v) => parseDateFilterValue(v) ?? 'now',
+  },
+  {
+    key: 'sortColumn',
+    queryParamKey: 'column',
+    defaultValue: 'StartTime',
+  },
+  {
+    key: 'sortOrder',
+    queryParamKey: 'order',
+    defaultValue: 'DESC',
+    parseValue: (value: string) => (value === 'ASC' ? 'ASC' : 'DESC'),
+  },
+  {
+    key: 'query',
+    defaultValue: '',
+  },
+  ...domainBatchActionsQueryParamsConfig,
+  {
+    key: 'workflowId',
+    defaultValue: '',
+  },
+  {
+    key: 'workflowType',
+    defaultValue: '',
+  },
+  {
+    key: 'statusBasic',
+    queryParamKey: 'status',
+    parseValue: (value: string) =>
+      isWorkflowStatusBasicVisibility(value) ? value : undefined,
+  },
+  {
+    key: 'timeRangeStartBasic',
+    queryParamKey: 'start',
+    defaultValue: 'now-30d',
+    parseValue: (v) => parseDateFilterValue(v) ?? 'now-30d',
+  },
+  {
+    key: 'timeRangeEndBasic',
+    queryParamKey: 'end',
+    defaultValue: 'now',
+    parseValue: (v) => parseDateFilterValue(v) ?? 'now',
+  },
+  {
+    key: 'inputTypeArchival',
+    queryParamKey: 'ainput',
+    defaultValue: 'search',
+    parseValue: (value: string) => (value === 'query' ? 'query' : 'search'),
+  },
+  {
+    key: 'searchArchival',
+    queryParamKey: 'asearch',
+    defaultValue: '',
+  },
+  {
+    key: 'statusesArchival',
+    queryParamKey: 'astatus',
+    isMultiValue: true,
+    parseValue: (value: Array<string>) =>
+      value.every(
+        (status) =>
+          isWorkflowStatus(status) &&
+          status !== 'WORKFLOW_EXECUTION_CLOSE_STATUS_INVALID'
+      )
+        ? (value as Array<WorkflowStatusClosed>)
+        : undefined,
+  },
+  {
+    key: 'timeRangeStartArchival',
+    queryParamKey: 'astart',
+    defaultValue: 'now-7d',
+    parseValue: (v) => parseDateFilterValue(v) ?? 'now-7d',
+  },
+  {
+    key: 'timeRangeEndArchival',
+    queryParamKey: 'aend',
+    defaultValue: 'now',
+    parseValue: (v) => parseDateFilterValue(v) ?? 'now',
+  },
+  {
+    key: 'sortColumnArchival',
+    queryParamKey: 'acolumn',
+    defaultValue: 'StartTime',
+  },
+  {
+    key: 'sortOrderArchival',
+    queryParamKey: 'aorder',
+    defaultValue: 'DESC',
+    parseValue: (value: string) => (value === 'ASC' ? 'ASC' : 'DESC'),
+  },
+  {
+    key: 'queryArchival',
+    queryParamKey: 'aquery',
+    defaultValue: '',
+  },
+  {
+    key: 'clusterAttributeScope',
+    queryParamKey: 'cs',
+  },
+  {
+    key: 'clusterAttributeValue',
+    queryParamKey: 'cv',
+  },
+  {
+    key: 'schedulesSearch',
+    queryParamKey: 'schsearch',
+    defaultValue: '',
+  },
+  {
+    key: 'schedulesStatus',
+    queryParamKey: 'schstatus',
+    parseValue: (value: string) =>
+      isDomainSchedulesStatus(value) ? value : undefined,
+  },
+] as const;
+
+export default domainPageQueryParamsConfig;

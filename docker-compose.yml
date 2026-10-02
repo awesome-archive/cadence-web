@@ -1,0 +1,19 @@
+version: "3.8"
+services: 
+  cadence_web:
+    container_name: cadence_web
+    build:
+      context: . #if your Dockerfile is not at the same level change the path here (./cadence_web)
+      target: dev
+    restart: always
+    command: npm run dev
+    environment:
+      - NODE_ENV=development 
+      #if you're using Windows, you may need to uncomment the next line
+      #- WATCHPACK_POLLING=true
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - 8088:8088

@@ -2,34 +2,45 @@
 
 This doc is intended for contributors to `cadence-web`
 
+> 📚 **New to contributing to Cadence?** Check out our [Contributing Guide](https://cadenceworkflow.io/community/how-to-contribute/getting-started) for an overview of the contribution process across all Cadence repositories. This document contains cadence-web specific setup and development instructions.
+
+Once you go through the rest of this doc and get familiar with local development setup, feel free to start contributing!
+
+Join our community on the CNCF Slack workspace at [cloud-native.slack.com](https://communityinviter.com/apps/cloud-native/cncf) in the **#cadence-users** channel to reach out and discuss issues with the team.
+
 **Note:** All contributors will be asked to sign [Uber Contributor License Agreement](http://t.uber.com/cla) during the PR process.
 
 ## Development Environment
 
-Node.js. Check [package.json](https://github.com/uber/cadence-web/blob/master/package.json) for the current version required. We recommend using [nvm](https://github.com/creationix/nvm) to manage your versions.
+Node.js. Check [package.json](https://github.com/cadence-workflow/cadence-web/blob/master/package.json) for the current (engines > node) version required.
 
-You also need to run [cadence-server](https://github.com/uber/cadence) locally or have access to a cadence environment to talk to.
+For development check the [Building & developing cadence-web](./README.md#building-&-developing-cadence-web)section
 
 ## Working with the source code
 
 Follow [this great guide](https://gist.github.com/Chaser324/ce0505fbed06b947d962) on how to work with a GitHub fork and submit a pull request.
 
-## Building
+## Publish a personal Storybook preview
 
-The standard node.js workflow is used here
+You can deploy your fork to your own GitHub Pages site, giving you a shareable URL such as `https://<your-username>.github.io/cadence-web/`.
 
-```
-npm i
-npm run dev   # webpack hot reload environment
-npm start     # for production
-```
+This step is optional. Use it to share a preview of a new component, or a change to an existing one. 
 
-## Testing
+**Before you deploy**
+1. In your fork, go to Settings, then Pages.
+2. Under Build and deployment, set Source to "GitHub Actions".
+3. In your fork, go to Settings, then Environments, then `github-pages`.
+4. Under Deployment branches and tags, add a rule for your branch name (or `*` for any branch).
 
-Start up the webserver for testing via:
+**Deploy a branch**
 
-```
-npm run test-server
-```
+1. In your fork, open the Actions tab. The first time, click "I understand my workflows, go ahead and enable them".
+2. Select the "Storybook Pages" workflow.
+3. Run workflow, choose your branch, then Run workflow.
+4. Wait 1 to 2 minutes for it to finish.
+5. Open `https://<your-username>.github.io/cadence-web/`.
 
-The open `localhost:8090` in the browser of your choice, or use `npm test` to run it with [mocha-chrome](https://www.npmjs.com/package/mocha-chrome) from the command line. This runs the tests via Chrome in headless mode and shows the results in your terminal.
+**Good to know**
+
+- It only runs when you trigger it manually.
+- It's one live site per fork; each run replaces what was there before.

@@ -1,72 +1,259 @@
 # Cadence Web UI
 
-[![Build Status](https://travis-ci.org/uber/cadence-web.svg?branch=master)](https://travis-ci.org/uber/cadence-web)
+[![Build Status](https://github.com/uber/cadence-web/actions/workflows/build.yml/badge.svg)](https://github.com/uber/cadence-web/actions/workflows/build.yml) [![Docker Status](https://github.com/uber/cadence-web/actions/workflows/docker_publish.yml/badge.svg)](https://hub.docker.com/r/ubercadence/web/tags)
+[![Slack Status](https://img.shields.io/badge/slack-join_chat-white.svg?logo=slack&style=social)](https://communityinviter.com/apps/cloud-native/cncf)
 
 Cadence is a distributed, scalable, durable, and highly available orchestration engine we developed at Uber Engineering to execute asynchronous long-running business logic in a scalable and resilient way.
 
 This web UI is used to view workflows from [Cadence][cadence], see what's running, and explore and debug workflow executions.
 
-![Demo Usage](https://s3-us-west-2.amazonaws.com/uber-common-public/svc-cadence-web/cadence-web.demo.gif)
-
 ## Getting Started
+
+### Using cadence-web
+
+The latest version of `cadence-web` is included in the `cadence` composed docker containers in the [main Cadence repository][cadence]. Follow the instructions there to get started.
+
+```
+docker-compose -f docker/docker-compose.yml up
+```
 
 ### Configuration
 
-Set these environment variables if you need to change their defaults
+Set these environment variables if you need to change their defaults.
 
-| Variable                  | Description                                   | Default           |
-| ------------------------- | --------------------------------------------- | ----------------- |
-| CADENCE_TCHANNEL_PEERS    | Comma-delmited list of tchannel peers         | 127.0.0.1:7933    |
-| CADENCE_TCHANNEL_SERVICE  | Name of the cadence tchannel service to call  | cadence-frontend  |
-| CADENCE_WEB_PORT          | HTTP port to serve on                         | 8088              |
-| CADENCE_EXTERNAL_SCRIPTS     | Addtional JavaScript tags to serve in the UI  |                   |
+| Variable                     | Description                                                                                                     | Default          |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------- | ---------------- |
+| CADENCE_GRPC_PEERS           | Comma-delimited list of gRPC peers                                                                              | 127.0.0.1:7833   |
+| CADENCE_GRPC_SERVICES_NAMES  | Comma-delimited list of gRPC services to call                                                                   | cadence-frontend |
+| CADENCE_CLUSTERS_NAMES       | Comma-delimited list of cluster names                                                                           | cluster0         |
+| CADENCE_WEB_PORT             | HTTP port to serve on                                                                                           | 8088             |
+| CADENCE_WEB_HOSTNAME         | Host name to serve on                                                                                           | 0.0.0.0          |
+| CADENCE_ADMIN_SECURITY_TOKEN | Admin token for accessing admin methods                                                                         | ''               |
+| CADENCE_WEB_AUTH_STRATEGY    | Auth strategy resolver. Supported values: `disabled` or `jwt`; invalid or unset values fall back to `disabled`. | disabled         |
+| CADENCE_GRPC_TLS_CA_FILE     | Path to root CA certificate file for enabling one-way TLS on gRPC connections                                   | ''               |
+| CADENCE_WEB_SERVICE_NAME     | Name of the web service used as GRPC caller and OTEL resource name                                              | cadence-web      |
 
-### Running locally
+Note: To connect `cadence-web` to multiple clusters, you will need to add comma-delimted entries for `CADENCE_GRPC_PEERS`, `CADENCE_GRPC_SERVICES_NAMES` & `CADENCE_CLUSTERS_NAMES` for each cluster (each cluster values are grouped by their index within the Comma-delimited lists).
 
-`cadence-web` uses all the standard [npm scripts](https://docs.npmjs.com/misc/scripts) to install dependencies, run the server, and run tests. Additionally to run locally with webpack hot reloading and other conveniences, use
+Example:
+
+```
+CADENCE_GRPC_PEERS=127.0.0.1:3000,127.0.0.1:5000
+CADENCE_GRPC_SERVICES_NAMES=cadence-frontend-cluster0,cadence-frontend-cluster1
+CADENCE_CLUSTERS_NAMES=cluster0,cluster1
+```
+
+#### JWT Authentication (cookie)
+
+`CADENCE_WEB_AUTH_STRATEGY` is resolved server-side to one of the supported auth strategies: `disabled` or `jwt`. Invalid or unset values fall back to `disabled`.
+
+When the resolved strategy is `jwt`, cadence-web authenticates using a cookie:
+
+- Cookie name: `cadence-authorization`
+- Cookie value: raw JWT string
+
+To integrate an upstream proxy / IdP, set the cookie for the cadence-web origin:
+
+```
+Set-Cookie: cadence-authorization=<JWT>; Path=/; HttpOnly; SameSite=Lax; Secure
+```
+
+You can also set/clear the cookie via `POST /api/auth/token` and `DELETE /api/auth/token`; or use `Login with JWT` button in the UI.
+
+#### Feature flags
+
+Feature flags control various UI features and functionality in `cadence-web`. These can be configured using environment variables.
+
+| Feature                         | Description                                                                                                                                                                                                     | Environment Variable Configuration                                | Minimum Cadence Server Version          |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | --------------------------------------- |
+| **Extended Domain Information** | Enhanced domain metadata display and help menu UI                                                                                                                                                               | `CADENCE_EXTENDED_DOMAIN_INFO_METADATA_ENABLED=true`              | N/A                                     |
+| **Workflow Diagnostics**        | Workflow diagnostics APIs and UI for debugging workflows                                                                                                                                                        | `CADENCE_WORKFLOW_DIAGNOSTICS_ENABLED=true`                       | 1.2.13+ (1.3.1+ for full functionality) |
+| **Default Archival Search**     | Shows the default workflow search input and query input for archival workflows page. Default search is disabled by default as it doesn't work well with S3 implementation                                       | `CADENCE_ARCHIVAL_DEFAULT_SEARCH_ENABLED=true`                    | N/A                                     |
+| **Failover History List**       | List and filter domain failovers                                                                                                                                                                                | `CADENCE_FAILOVER_HISTORY_ENABLED=true`                           | 1.4.0+                                  |
+| **Batch Actions**               | View/hide batch actions (terminate/cancel/signal) UI for workflows. Only works for users with access for cadence-system domain. Access can be scoped: everyone, domain admins, or users with domain write access | `CADENCE_BATCH_ACTIONS_UI_ENABLED=ENABLED` (or `ADMIN`/`WRITE`)   | 1.4.0+                                  |
+| **Schedules**                   | UI for viewing and managing Cadence Schedules (create, list, pause/unpause, view schedule details and runs)                                                                                                     | `CADENCE_SCHEDULES_ENABLED=true`                                  | 1.4.1+                                  |
+| **Workflows List**              | New & customizable Workflows List for viewing workflows                                                                                                                                                         | `CADENCE_WORKFLOWS_LIST_ENABLED=true`                             | N/A                                     |
+| **List Workflows Partial Match** | Partial (prefix) matching on workflow search inputs when listing workflows. Requires advanced visibility to be enabled on the cluster                                                                           | `CADENCE_LIST_WORKFLOWS_PARTIAL_MATCH_ENABLED=true`               | 1.4.1+                                  |
+
+**Note:** For advanced customization, feature flags can be modified through resolvers in the dynamic config system ([`src/config/dynamic/resolvers`](src/config/dynamic/resolvers)).
+
+#### Markdown in Queries
+
+Workflow queries can return markdown with interactive buttons for signaling and starting workflows, powered by [Markdoc](https://markdoc.io/). When rendered on a workflow page, buttons automatically inherit `domain`, `cluster`, `workflowId`, and `runId` from the page context so workflow authors don't need to hardcode them.
+
+A live reference and test page is available at `/docs` when cadence-web is running. See the [cadence-samples query example](https://github.com/cadence-workflow/cadence-samples/tree/master/new_samples) for a working implementation.
+
+### Using TLS for gRPC
+
+You can run cadence-web with secure gRPC TLS communication by passing your CA certificate file to the container and configure the environment variable accordingly.
+
+#### Steps to Pass the Certificate File in Docker
+
+1. **Prepare your CA certificate file:**  
+   Ensure you have the root CA file (e.g., `ca.pem`) accessible on your host machine.
+
+2. **Mount the certificate file into the container:**  
+   Use Docker volume mounting (`-v` or `--volume`) to make the certificate file available inside the container at a known path.
+
+3. **Set the `CADENCE_GRPC_TLS_CA_FILE` environment variable to the mounted certificate path:**
+
+Example command (for Linux):
+
+```bash
+docker run -it --rm \
+  -p 8088:8088  \
+  -v /path/on/host/ca.pem:/etc/certs/ca.pem:ro \
+  -e CADENCE_GRPC_TLS_CA_FILE=/etc/certs/ca.pem \
+  ubercadence/server:master-auto-setup
+```
+
+- Replace `/path/on/host/ca.pem` with the actual location of your CA certificate on the host system.
+- `CADENCE_GRPC_TLS_CA_FILE` must point to the path inside the container where the certificate is mounted.
+
+## Building & developing cadence-web
+
+`cadence-web` requires node `v18` or greater to be able to run correctly.
+
+### Creating a production build
+
+To create a production build, follow these steps:
+
+1. Install npm packages and download idls
+
+```
+npm install && npm run install-idl && npm run generate:idl
+```
+
+2. Build the project files
+
+```
+npm run build
+```
+
+3. After building the code, start the server by running this command from the same directory as the build
+
+```
+npm start
+```
+
+4. Once the webapp is ready, access it through `localhost:8088` (port can be changed using `CADENCE_WEB_PORT` environment variable)
+
+### Running development environment
+
+To run the development server, follow these steps:
+
+1. Install npm packages and download idls
+
+```
+npm install && npm run install-idl && npm run generate:idl
+```
+
+2. Run the development server using
 
 ```
 npm run dev
 ```
 
-For development and contributing to `cadence-web`, please see the [contributing guide](https://github.com/uber/cadence-web/blob/master/CONTRIBUTING.md).
+3. Once the webapp is ready, access it through `localhost:8088` (port can be changed using `CADENCE_WEB_PORT` environment variable)
 
-You may also use docker by pulling [ubercadence/web](https://hub.docker.com/r/ubercadence/web/). It is also included in the Cadence server's [local docker setup](https://github.com/uber/cadence/tree/master/docker).
+Note: For contribution we recommend using dev containers, check [VSCode Dev Containers](#using-vscode-dev-containers) for more information
 
-### API
+#### Using VSCode Dev Containers
 
-If you need to extend `cadence-web` to add middleware to the server, you can install `cadence-web` as a dependecy, and it will export the [Koa](http://koajs.com/) web server that has not yet been started or configured. It includes an additional `init` function that will then compose the built-in middleware. This gives you an option to add middleware before or after you call `init` so it will add the middleware at the beginning or the end of the chain, respectively.
+1. Set up the [Remote Containers plugin](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) in VSCode.
+2. Open the cadence-web directory in VSCode.
+3. Make sure to update `CADENCE_GRPC_PEERS` with the correct host. (If you are connecting to a server on a container host machine use `host.docker.internal:7833`, where `7833` is the gRPC port for a running [cadence-frontend](https://github.com/cadence-workflow/cadence/tree/master/service/frontend) service)
+4. Use the Command Palette to select the 'Reopen folder in Container' option
+5. Follow the same commands listed in [Running development environment](#running-development-environment).
 
-#### `init(options)`
+#### Developing cadence-web against cadence composed docker
 
-All options are optional.
+To start development against dockerized cadence services, run the following command from the root of the project
 
-`useWebpack`: If `true`, starts webpack and adds the middleware, otherwise if `false`, it assumes the UI bundle was already built and serves it statically. Defaults to `process.env.NODE_ENV === 'production'`.
-
-`logErrors`: If `true`, thrown errors are logged to `console.error`. Defaults to `true`.
-
-For example, here is how you would add a request count metric using `uber-statsd-client`:
-
-```javascript
-var app = require('cadence-web')
-var createStatsd = require('uber-statsd-client')
-var sdc = createStatsd({
-    host: 'statsd.example.com'
-})
-
-app.use(async function(ctx, next) {
-  sdc.increment('http.request')
-  await next()
-})
-.init()
-.listen(7000)
+```
+docker-compose -f docker-compose-backend-services.yml up
 ```
 
+You can customize the YAML file or reuse configurations from the [cadence repository](https://github.com/cadence-workflow/cadence/tree/master/docker). (In case of reusing existing files: ensure that cadence-web is not included in the composed container services, or just remove it)
 
-The [webpack](https://webpack.js.org/) configuration is also exported as `webpackConfig`, and can be modified before calling `init()`.
+After running `cadence`, start `cadence-web` for development using one of the previous methods ([Running development environment](#running-development-environment), [VSCode Dev Containers](#using-vscode-dev-containers))
 
-### Licence
+### Storybook
 
-MIT License, please see [LICENSE](https://github.com/uber/cadence-web/blob/master/LICENSE) for details.
+Storybook shows UI components on their own, with mock data.
 
-[cadence]: https://github.com/uber/cadence
+To run Storybook locally:
+
+```
+npm run storybook
+```
+
+Open `localhost:6006` to view it.
+
+To build a static Storybook site:
+
+```
+npm run build-storybook
+```
+
+This writes static files to `storybook-static`.
+
+To share a live preview link from your fork, see [Publish a personal Storybook preview](./CONTRIBUTING.md#publish-a-personal-storybook-preview) in `CONTRIBUTING.md`.
+
+### Updating IDLs
+
+To update the Cadence IDL files:
+
+1. Update the commit hash in `package.json` under `config.cadence_idl_version` to the latest commit hash from the [cadence-idl repository](https://github.com/cadence-workflow/cadence-idl).
+
+2. Download the new IDL files:
+
+```
+npm run install-idl
+```
+
+3. Generate TypeScript types from the IDL files:
+
+```
+npm run generate:idl
+```
+
+4. Check for errors:
+
+```
+npm run lint && npm run typecheck && npm run test
+```
+
+5. Run cadence-web locally to sanity-check if everything works as expected (see [Running development environment](#running-development-environment))
+
+6. Fix any errors that arise from the updated IDL files.
+
+### NPM scripts
+
+| script            | Description                                                                                      |
+| ----------------- | ------------------------------------------------------------------------------------------------ |
+| build             | Generate a production build                                                                      |
+| start             | Start server for existing production build                                                       |
+| dev               | Run a development server                                                                         |
+| install-idl       | Download idl files required for building/running the project                                     |
+| generate:idl      | Move idl files inside the project and generate typescript types for them                         |
+| test              | Run all test cases. To pass extra jest flags, use environment specific scripts e.g. test:unit:\* |
+| test:unit         | Run all unit tests. To pass extra jest flags, use environment specific scripts e.g. test:unit:\* |
+| test:unit:browser | Run only browser unit tests                                                                      |
+| test:unit:node    | Run only node unit tests                                                                         |
+| lint              | Run eslint                                                                                       |
+| typecheck         | Run typescript checks                                                                            |
+| storybook         | Run Storybook locally on port 6006                                                               |
+| build-storybook   | Build a static Storybook site into `storybook-static`                                            |
+
+## Contributing
+
+We'd love your help in making the Cadence Web UI great. Please review our [contribution guidelines](CONTRIBUTING.md).
+
+If you'd like to propose a new feature or discuss issues, join the [CNCF Slack workspace](https://communityinviter.com/apps/cloud-native/cncf) in the **#cadence-users** channel to start a discussion.
+
+## License
+
+Apache 2.0 License, please see [LICENSE](https://github.com/cadence-workflow/cadence-web/blob/master/LICENSE) for details.
+
+[cadence]: https://github.com/cadence-workflow/cadence

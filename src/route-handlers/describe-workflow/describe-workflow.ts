@@ -1,0 +1,174 @@
+import merge from 'lodash/merge';
+import { NextResponse, type NextRequest } from 'next/server';
+
+import { getHTTPStatusCode, GRPCError } from '@/utils/grpc/grpc-error';
+import logger, { type RouteHandlerErrorPayload } from '@/utils/logger';
+
+import {
+  type DescribeUnArchivedWorkflowResponse,
+  type DescribeArchivedWorkflowResponse,
+  type RequestParams,
+  type Context,
+} from './describe-workflow.types';
+
+export default async function describeWorkflow(
+  _: NextRequest,
+  requestParams: RequestParams,
+  ctx: Context
+) {
+  const params = requestParams.params;
+
+  try {
+    const describeWorkflowResponse =
+      await ctx.grpcClusterMethods.describeWorkflow({
+        domain: params.domain,
+        workflowExecution: {
+          workflowId: params.workflowId,
+          runId: params.runId,
+        },
+      });
+
+    const res: DescribeUnArchivedWorkflowResponse = merge(
+      {},
+      describeWorkflowResponse,
+      {
+        workflowExecutionInfo: { closeEvent: null, isArchived: false as const },
+      }
+    );
+    if (
+      res.workflowExecutionInfo &&
+      res.workflowExecutionInfo.closeStatus &&
+      res.workflowExecutionInfo.closeStatus !==
+        'WORKFLOW_EXECUTION_CLOSE_STATUS_INVALID'
+    ) {
+      // When runId is omitted the backend resolves it to the last run, so we pin
+      // the close event lookup to the run we just described rather than letting
+      // it resolve "last run" a second time.
+      const resolvedRunId =
+        describeWorkflowResponse.workflowExecutionInfo?.workflowExecution
+          ?.runId ?? params.runId;
+
+      const closeEventResponse = await ctx.grpcClusterMethods.getHistory({
+        domain: params.domain,
+        workflowExecution: {
+          workflowId: params.workflowId,
+          runId: resolvedRunId,
+        },
+        historyEventFilterType: 'EVENT_FILTER_TYPE_CLOSE_EVENT',
+      });
+      if (closeEventResponse.history?.events?.[0])
+        res.workflowExecutionInfo.closeEvent =
+          closeEventResponse.history?.events?.[0];
+    }
+
+    return NextResponse.json(res);
+  } catch (e) {
+    // DescribeWorkflow depends on a temp datasource, so sometimes data is not available
+    // to make it more reliable we depend on history to construct similar response in case data is not available
+    try {
+      if (e instanceof GRPCError && e.httpStatusCode !== 404) {
+        throw e;
+      }
+      const archivedHistoryResponse = await ctx.grpcClusterMethods.getHistory({
+        domain: params.domain,
+        workflowExecution: {
+          workflowId: params.workflowId,
+          runId: params.runId,
+        },
+        pageSize: 1,
+      });
+      const archivedHistoryEvents =
+        archivedHistoryResponse.history?.events || [];
+
+      if (!archivedHistoryEvents[0]?.workflowExecutionStartedEventAttributes) {
+        throw e;
+      }
+
+      const {
+        eventTime: startTime,
+        workflowExecutionStartedEventAttributes: {
+          taskList,
+          executionStartToCloseTimeout,
+          taskStartToCloseTimeout,
+          workflowType: type,
+          originalExecutionRunId,
+        },
+      } = archivedHistoryEvents[0];
+
+      const res: DescribeArchivedWorkflowResponse = {
+        executionConfiguration: {
+          taskList,
+          executionStartToCloseTimeout,
+          taskStartToCloseTimeout,
+        },
+        workflowExecutionInfo: {
+          workflowExecution: {
+            // Falls back to the started event's run when the caller omitted runId
+            runId: params.runId ?? originalExecutionRunId,
+            workflowId: params.workflowId,
+          },
+          isArchived: true,
+          startTime,
+          type,
+          closeTime: null,
+          closeStatus: null,
+          closeEvent: null,
+          historyLength: null,
+          parentExecutionInfo: null,
+          executionTime: null,
+          memo: null,
+          searchAttributes: null,
+          autoResetPoints: null,
+          taskList: '',
+          isCron: null,
+          updateTime: null,
+          partitionConfig: null,
+          taskListInfo: null,
+          activeClusterSelectionPolicy: null,
+          cronOverlapPolicy: 'CRON_OVERLAP_POLICY_INVALID',
+          cronSchedule: '',
+          executionStatus: 'WORKFLOW_EXECUTION_STATUS_INVALID',
+          scheduledExecutionTime: null,
+        },
+        pendingActivities: [],
+        pendingChildren: [],
+        pendingDecision: null,
+      };
+      return NextResponse.json(res);
+    } catch (e) {
+      // skips logs for NotFound errors
+      // treat 400 responses for requesting unconfigured archives as 404
+      if (
+        e instanceof GRPCError &&
+        (e.httpStatusCode === 404 ||
+          (e.httpStatusCode === 400 &&
+            e.message ===
+              'Requested workflow history not found, may have passed retention period.'))
+      ) {
+        return NextResponse.json(
+          {
+            message: 'Requested workflow history not found',
+            cause: e,
+          },
+          { status: 404 }
+        );
+      } else {
+        logger.error<RouteHandlerErrorPayload>(
+          { requestParams: params, error: e },
+          'Error fetching workflow execution info'
+        );
+
+        return NextResponse.json(
+          {
+            message:
+              e instanceof GRPCError
+                ? e.message
+                : 'Error fetching workflow execution info',
+            cause: e,
+          },
+          { status: getHTTPStatusCode(e) }
+        );
+      }
+    }
+  }
+}

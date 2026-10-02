@@ -1,0 +1,65 @@
+import { type LoadedConfigResolvedValues } from '../config.types';
+
+const mockResolvedConfigValues: LoadedConfigResolvedValues = {
+  ADMIN_SECURITY_TOKEN: 'mock-secret',
+  CADENCE_WEB_PORT: '3000',
+  CADENCE_WEB_AUTH_STRATEGY: 'disabled',
+  CLUSTERS: [
+    {
+      clusterName: 'mock-cluster1',
+      grpc: {
+        serviceName: 'mock-service1',
+        peer: 'mock.localhost:7933',
+      },
+    },
+    {
+      clusterName: 'mock-cluster2',
+      grpc: {
+        serviceName: 'mock-service2',
+        peer: 'mock.localhost:7933',
+      },
+    },
+  ],
+  CLUSTERS_PUBLIC: [
+    {
+      clusterName: 'mock-cluster1',
+    },
+    {
+      clusterName: 'mock-cluster2',
+    },
+  ],
+  CRON_LIST_ENABLED: false,
+  DOMAIN_ACCESS: {
+    canRead: true,
+    canWrite: true,
+  },
+  WORKFLOW_ACTIONS_ENABLED: {
+    terminate: 'ENABLED',
+    cancel: 'ENABLED',
+    signal: 'ENABLED',
+    restart: 'ENABLED',
+    reset: 'ENABLED',
+    start: 'ENABLED',
+  },
+  EXTENDED_DOMAIN_INFO_ENABLED: {
+    metadata: false,
+    issues: false,
+  },
+  WORKFLOW_DIAGNOSTICS_ENABLED: false,
+  WORKFLOW_DIAGNOSTICS_IN_HISTORY_ENABLED: false,
+  ARCHIVAL_DEFAULT_SEARCH_ENABLED: false,
+  BATCH_ACTIONS_UI_ENABLED: false,
+  FAILOVER_HISTORY_ENABLED: false,
+  SCHEDULE_ACTIONS_ENABLED: {
+    pause: 'ENABLED',
+    resume: 'ENABLED',
+    delete: 'ENABLED',
+    backfill: 'ENABLED',
+    start: 'ENABLED',
+    edit: 'ENABLED',
+  },
+  SCHEDULES_ENABLED: false,
+  WORKFLOWS_LIST_ENABLED: false,
+  LIST_WORKFLOWS_PARTIAL_MATCH_ENABLED: false,
+};
+export default mockResolvedConfigValues;

@@ -1,0 +1,159 @@
+import { z } from 'zod';
+
+import { CRON_FIELD_ORDER } from '@/components/cron-schedule-input/cron-schedule-input.constants';
+import {
+  WORKER_SDK_LANGUAGES,
+  WORKFLOW_ID_REUSE_POLICIES,
+} from '@/route-handlers/start-workflow/start-workflow.constants';
+import refineRetryPolicyForm from '@/views/shared/retry-policy-fields/helpers/refine-retry-policy-form';
+import { retryPolicyFormFieldsShape } from '@/views/shared/retry-policy-fields/schemas/retry-policy-form-schema';
+
+import { getCronFieldsError } from '../helpers/get-cron-fields-error';
+
+const baseSchema = z.object({
+  workflowType: z.object({
+    name: z.string().trim().min(1, 'Workflow type name is required'),
+  }),
+  taskList: z.object({
+    name: z.string().trim().min(1, 'Task list name is required'),
+  }),
+  workerSDKLanguage: z.enum(WORKER_SDK_LANGUAGES),
+  input: z
+    .array(z.string())
+    .optional()
+    .superRefine((inputArray, ctx) => {
+      if (!inputArray) return;
+      if (inputArray.length === 1 && inputArray[0] === '') {
+        return;
+      }
+      // Check each input individually for field-level errors
+      for (let i = 0; i < inputArray.length; i++) {
+        const val = inputArray[i];
+        try {
+          JSON.parse(val); // TODO: consider using losslessJsonParse
+        } catch {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Input must be valid JSON',
+            path: [i],
+          });
+        }
+      }
+    }),
+  workflowId: z.string().trim().optional(),
+  executionStartToCloseTimeoutSeconds: z.number().positive(),
+  taskStartToCloseTimeoutSeconds: z.number().positive().optional(),
+  workflowIdReusePolicy: z.enum(WORKFLOW_ID_REUSE_POLICIES).optional(),
+  memo: z
+    .string()
+    .optional()
+    .refine((val) => {
+      if (!val || val.trim() === '') return true;
+      try {
+        JSON.parse(val);
+        return true;
+      } catch {
+        return false;
+      }
+    }, 'Memo must be valid JSON Object'),
+  searchAttributes: z
+    .array(
+      z.object({
+        key: z.string().min(1, 'Attribute key is required'),
+        value: z.union([
+          z.string().min(1, 'Attribute value is required'),
+          z.number(),
+          z.boolean(),
+        ]),
+      })
+    )
+    .optional(),
+
+  header: z
+    .string()
+    .optional()
+    .refine((val) => {
+      if (!val || val.trim() === '') return true;
+      try {
+        const parsed = JSON.parse(val);
+
+        return Object.entries(parsed).every(
+          (entry) => typeof entry[1] === 'string'
+        );
+      } catch {
+        return false;
+      }
+    }, 'Headers must be valid JSON Object, keys and values must be strings'),
+  // Schedule type fields
+  scheduleType: z.enum(['NOW', 'LATER', 'CRON']),
+  firstRunAt: z.string().optional(),
+  cronSchedule: z
+    .object({
+      minutes: z.string().min(1, 'Minutes is required'),
+      hours: z.string().min(1, 'Hours is required'),
+      daysOfMonth: z.string().min(1, 'Days of month is required'),
+      months: z.string().min(1, 'Months is required'),
+      daysOfWeek: z.string().min(1, 'Days of week is required'),
+    })
+    .superRefine((data, ctx) => {
+      const allFieldsHasValue = Object.values(data).every((value) =>
+        Boolean(value)
+      );
+
+      // If there are missing fields, no need to validate the cron schedule format.
+      if (!allFieldsHasValue) {
+        return;
+      }
+
+      const cronString = CRON_FIELD_ORDER.map((key) => data[key]).join(' ');
+      const cronFieldsErrors = getCronFieldsError(cronString);
+
+      if (!cronFieldsErrors) return;
+
+      if (cronFieldsErrors?.general) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Invalid cron schedule format',
+        });
+      } else {
+        Object.entries(cronFieldsErrors).forEach(([errorKey, errorMessage]) => {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: errorMessage,
+            path: [errorKey],
+          });
+        });
+      }
+    })
+    .optional(),
+  // Cluster attribute (active-active domains only)
+  clusterAttribute: z
+    .object({
+      scope: z.string().min(1, 'Cluster attribute scope is required'),
+      name: z.string().min(1, 'Cluster attribute name is required'),
+    })
+    .optional(),
+  // Retry policy fields
+  ...retryPolicyFormFieldsShape,
+});
+
+export const startWorkflowFormSchema = baseSchema.superRefine((data, ctx) => {
+  // Validate schedule type specific requirements
+  if (data.scheduleType === 'LATER' && !data.firstRunAt) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'First run time is required when schedule type is LATER',
+      path: ['firstRunAt'],
+    });
+  }
+
+  if (data.scheduleType === 'CRON' && !data.cronSchedule) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Cron schedule is required when schedule type is CRON',
+      path: ['cronSchedule'],
+    });
+  }
+
+  refineRetryPolicyForm(data, ctx);
+});

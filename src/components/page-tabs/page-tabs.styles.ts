@@ -1,0 +1,67 @@
+import { styled as createStyled, type Theme } from 'baseui';
+import { type TabOverrides, type TabsOverrides } from 'baseui/tabs-motion';
+import type { StyleObject } from 'styletron-react';
+
+import { getMediaQueryMargins } from '@/utils/media-query/get-media-queries-margins';
+
+import type { Props } from './page-tabs.types';
+
+export const styled = {
+  TabTitleContainer: createStyled('div', ({ $theme }: { $theme: Theme }) => ({
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: $theme.sizing.scale400,
+  })),
+};
+
+export const overrides = ({
+  removeTabBarGridGutters,
+  hideTabBarBorder,
+}: Pick<Props, 'removeTabBarGridGutters' | 'hideTabBarBorder'>) => ({
+  tabs: {
+    Root: {
+      style: ({ $theme }: { $theme: Theme }): StyleObject => ({
+        display: 'flex',
+        flexDirection: 'column',
+        borderBottom: hideTabBarBorder
+          ? 'none'
+          : `1px solid ${$theme.colors.borderOpaque}`,
+      }),
+    },
+    TabBar: {
+      style: ({ $theme }: { $theme: Theme }): StyleObject => ({
+        width: '100%',
+        alignSelf: 'center',
+        ...(!removeTabBarGridGutters
+          ? getMediaQueryMargins($theme, (margin) => ({
+              maxWidth: `${$theme.grid.maxWidth + 2 * margin}px`,
+              paddingRight: `${margin}px`,
+              paddingLeft: `${margin}px`,
+            }))
+          : null),
+      }),
+    },
+    TabList: {
+      style: {
+        paddingBottom: 0,
+        marginBottom: 0,
+      },
+    },
+    TabBorder: {
+      style: {
+        display: 'none',
+      },
+    },
+    TabHighlight: {
+      style: ({ $theme }: { $theme: Theme }): StyleObject => ({
+        height: $theme.sizing.scale0,
+      }),
+    },
+  } satisfies TabsOverrides,
+  tab: {
+    TabPanel: {
+      style: { display: 'none' },
+    },
+  } satisfies TabOverrides,
+});

@@ -1,0 +1,137 @@
+import { z } from 'zod';
+
+import AUTH_STRATEGY_VALUES_CONFIG from '@/config/auth/auth-strategy-values.config';
+
+import { type ResolverSchemas } from '../../../../utils/config/config.types';
+import SCHEDULE_ACTIONS_DISABLED_VALUES_CONFIG from '../schedule-actions-disabled-values.config';
+import WORKFLOW_ACTIONS_DISABLED_VALUES_CONFIG from '../workflow-actions-disabled-values.config';
+
+const scheduleActionsEnabledValueSchema = z.enum([
+  'ENABLED',
+  ...SCHEDULE_ACTIONS_DISABLED_VALUES_CONFIG,
+]);
+
+const workflowActionsEnabledValueSchema = z.enum([
+  'ENABLED',
+  ...WORKFLOW_ACTIONS_DISABLED_VALUES_CONFIG,
+]);
+
+const resolverSchemas: ResolverSchemas = {
+  CADENCE_WEB_AUTH_STRATEGY: {
+    args: z.undefined(),
+    returnType: z.enum(AUTH_STRATEGY_VALUES_CONFIG),
+  },
+  CLUSTERS: {
+    args: z.undefined(),
+    returnType: z.array(
+      z.object({
+        clusterName: z.string(),
+        grpc: z.object({
+          serviceName: z.string(),
+          metadata: z.record(z.string(), z.string()).optional(),
+          peer: z.string(),
+        }),
+      })
+    ),
+  },
+  CLUSTERS_PUBLIC: {
+    args: z.undefined(),
+    returnType: z.array(
+      z.object({
+        clusterName: z.string(),
+      })
+    ),
+  },
+  DOMAIN_ACCESS: {
+    args: z.object({
+      cluster: z.string(),
+      domain: z.string(),
+    }),
+    returnType: z.object({
+      canRead: z.boolean(),
+      canWrite: z.boolean(),
+    }),
+  },
+  WORKFLOW_ACTIONS_ENABLED: {
+    args: z.object({
+      cluster: z.string(),
+      domain: z.string(),
+    }),
+    returnType: z.object({
+      cancel: workflowActionsEnabledValueSchema,
+      terminate: workflowActionsEnabledValueSchema,
+      signal: workflowActionsEnabledValueSchema,
+      restart: workflowActionsEnabledValueSchema,
+      reset: workflowActionsEnabledValueSchema,
+      start: workflowActionsEnabledValueSchema,
+    }),
+  },
+  SCHEDULE_ACTIONS_ENABLED: {
+    args: z.object({
+      cluster: z.string(),
+      domain: z.string(),
+    }),
+    returnType: z.object({
+      pause: scheduleActionsEnabledValueSchema,
+      resume: scheduleActionsEnabledValueSchema,
+      delete: scheduleActionsEnabledValueSchema,
+      backfill: scheduleActionsEnabledValueSchema,
+      start: scheduleActionsEnabledValueSchema,
+      edit: scheduleActionsEnabledValueSchema,
+    }),
+  },
+  CRON_LIST_ENABLED: {
+    args: z.object({
+      cluster: z.string(),
+      domain: z.string(),
+    }),
+    returnType: z.boolean(),
+  },
+  EXTENDED_DOMAIN_INFO_ENABLED: {
+    args: z.undefined(),
+    returnType: z.object({
+      metadata: z.boolean(),
+      issues: z.boolean(),
+    }),
+  },
+  WORKFLOW_DIAGNOSTICS_ENABLED: {
+    args: z.undefined(),
+    returnType: z.boolean(),
+  },
+  WORKFLOW_DIAGNOSTICS_IN_HISTORY_ENABLED: {
+    args: z.undefined(),
+    returnType: z.boolean(),
+  },
+  ARCHIVAL_DEFAULT_SEARCH_ENABLED: {
+    args: z.undefined(),
+    returnType: z.boolean(),
+  },
+  BATCH_ACTIONS_UI_ENABLED: {
+    args: z.object({
+      cluster: z.string(),
+      domain: z.string(),
+    }),
+    returnType: z.boolean(),
+  },
+  FAILOVER_HISTORY_ENABLED: {
+    args: z.undefined(),
+    returnType: z.boolean(),
+  },
+  SCHEDULES_ENABLED: {
+    args: z.object({
+      cluster: z.string(),
+      domain: z.string(),
+    }),
+    returnType: z.boolean(),
+  },
+  WORKFLOWS_LIST_ENABLED: {
+    args: z.undefined(),
+    returnType: z.boolean(),
+  },
+  LIST_WORKFLOWS_PARTIAL_MATCH_ENABLED: {
+    args: z.undefined(),
+    returnType: z.boolean(),
+  },
+};
+
+export default resolverSchemas;
